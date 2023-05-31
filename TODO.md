@@ -19,3 +19,4 @@
 ## Questions
 Does prague have a good way to compare (in equality) numpy arrays? (Hashable Array?)
 - Would love to use (if ARRAY in LIST_OF_ARRAYS:)
+- ^ will work out of the box

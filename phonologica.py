@@ -81,6 +81,8 @@ def infer_changes(data):
     print ("In phonologica.infer_changes\n")
   # END DEBUG
 
+
+  # TODO equality?
   changes = [(old, new) for ((_, old, _), (_, new, _)) in data if old != new]
   changes_to_infer = set()
 
@@ -118,7 +120,7 @@ TODO: LOGIC FOR ITERATION HERE
 """
 def infer_rules(data, change_rule):
 
-  return sat.infer_rule(data, change_rule)
+  pass
 
 """
 TODO: logic for single rule here

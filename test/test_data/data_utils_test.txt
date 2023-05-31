@@ -1,4 +1,0 @@
-eighth
-fourth
-odd
-upper
