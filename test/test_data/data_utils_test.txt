@@ -1,0 +1,4 @@
+eighth
+fourth
+odd
+upper
