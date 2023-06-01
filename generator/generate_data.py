@@ -13,7 +13,9 @@ import numpy as np
 
 """ Here is the rule the data will be generated to follow """
 
-rule = {'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]}
+rules = [{'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]},
+         {'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]},
+         {'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]}]
 
 
 """
@@ -87,7 +89,7 @@ def generate_from_rule(name, rule, min = 3, max = 8, num_ex = 20, **kwargs):
 """
 Documentation
 """
-def generate_rule_interaction(file_name, new_data_name, rule, **kwargs):
+def generate_rule_interaction(old_data_name, new_data_name, rule, **kwargs):
     
     # get kwargs
     objects_np = kwargs['objects_np']
@@ -99,7 +101,7 @@ def generate_rule_interaction(file_name, new_data_name, rule, **kwargs):
     writer = csv.writer(file)
 
     # open file with data in it already
-    csv_file = open(f'datasets/{file_name}')
+    csv_file = open(f'datasets/{old_data_name}.csv')
     csv_reader = csv.reader(csv_file, delimiter=',')
 
     # get rule sets
@@ -249,31 +251,33 @@ NOTE: contexts are one hot encodings of partial feature vector
 """
 def main(args):
 
-    # get rule
-    global rule
+    # get rules
+    global rules
 
     # check if generating from pre-existing data or not
-    if args.gen_inter:
-        # process data
-        input_filepath = f"data/features.tsv"
-        output_filepath = f"data/feat_enc.npy"
-        features_list_filepath = f"data/features.txt"
-        columns_to_remove=('symbol',)
-        _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
-            data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
-                                                features_list_filepath, columns_to_remove)
+    # if args.gen_inter:
+    #     # process data
+    #     input_filepath = f"data/features.tsv"
+    #     output_filepath = f"data/feat_enc.npy"
+    #     features_list_filepath = f"data/features.txt"
+    #     columns_to_remove=('symbol',)
+    #     _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
+    #         data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
+    #                                             features_list_filepath, columns_to_remove)
 
-        generate_rule_interaction(args.file_name, args.data_name, rule, args.w_min, args.w_max, args.num_ex, objects_np=objects_np, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
-    else:
+    #     generate_rule_interaction(args.tsv_name, args.data_name, rule, args.w_min, args.w_max, args.num_ex, objects_np=objects_np, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
+    # else:
         # process data
-        input_filepath = f"data/{args.file_name}.tsv"
-        output_filepath = f"data/{args.file_name}_data.npy"
-        features_list_filepath = f"data/{args.file_name}_features.txt"
+        input_filepath = f"data/{args.tsv_name}.tsv"
+        output_filepath = f"data/{args.tsv_name}_data.npy"
+        features_list_filepath = f"data/{args.tsv_name}_features.txt"
         columns_to_remove=('symbol',)
         _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
             data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
                                                 features_list_filepath, columns_to_remove)
         generate_from_rule(args.data_name, rule, args.w_min, args.w_max, args.num_ex, input_filepath=input_filepath, objects_np=objects_np, symbols=symbols, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
+        
+        if (args.multiple_rules)
 
 
 """
@@ -282,15 +286,22 @@ Documentation
 #TODO make args more robust
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--file_name", type=str, required=True)
+    parser.add_argument("--tsv_name", type=str, required=True)
     parser.add_argument("--data_name", type=str, required=True)
     parser.add_argument("--w_min", type=int, default=3)
     parser.add_argument("--w_max", type=int, default=8)
     parser.add_argument("--num_ex", type=int, default=20)
-    parser.add_argument("--gen_inter", type=bool, default=False)
+    parser.add_argument("--multiple_rules", type=bool, default=False)
 
     args = parser.parse_args()
     print(vars(args))
     main(args)
+
+    """
+    TODO'S:
+    add list of rules instead of rules
+    name datasets generated with # according to rules applied
+    spit out metadata about what rule is in each file in metadata_{data_name}.txt
+    """
 
 
