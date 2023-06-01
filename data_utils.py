@@ -49,11 +49,8 @@ DOCS
 """
 def get_natural_class(partial_feat_list, fv_to_symbols, objects_np):
 
-    # get list of objects described by partial feature vector (one hot)
-    ext = prague.extension(np.array(partial_feat_list), objects_np)
-
     # use to retrieve feature vectors (fv) for each phoneme in class
-    feat_vectors = prague.extension_vector_to_objects(ext, objects_np)
+    feat_vectors = get_vector_nt_class(partial_feat_list, objects_np)
 
     # construct natural class
     nat_class = []
@@ -63,6 +60,27 @@ def get_natural_class(partial_feat_list, fv_to_symbols, objects_np):
 
     # generate and output list of symbols
     return nat_class
+
+"""
+Docs
+"""
+def get_vector_nt_class(partial_feat_list, objects_np):
+    # get list of objects described by partial feature vector (one hot)
+    ext = prague.extension(np.array(partial_feat_list), objects_np)
+    # use to retrieve feature vectors (fv) for each phoneme in class
+    return(prague.extension_vector_to_objects(ext, objects_np))
+
+"""
+Docs
+"""
+def feat_vector_in_class(feat_vector, partial_feat_v, objects_np):
+    # get natural class from partial feature vector
+    nat_class = get_vector_nt_class(partial_feat_v, objects_np)
+
+    # create hashable list
+    nat_class = [prague.HashableArray(fv) for fv in nat_class]
+
+    return prague.HashableAraay(feat_vector) in nat_class
 
 """
 DOCS

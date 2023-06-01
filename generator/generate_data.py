@@ -3,6 +3,7 @@ FILE HEADER
 """
 import sys
 sys.path.append('.')
+sys.path.append('./prague')
 
 import argparse
 import prague
@@ -12,7 +13,7 @@ import numpy as np
 
 """ Here is the rule the data will be generated to follow """
 
-rule = {'left': [0,0,0,1], 'right': [0,0,0,1], 'target': [0,0,1,0], 'change': [0,0,0,1]}
+rule = {'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]}
 
 
 """
@@ -86,8 +87,52 @@ def generate_from_rule(name, rule, min = 3, max = 8, num_ex = 20, **kwargs):
 """
 Documentation
 """
-def generate_rule_interaction(data, new_rule, min = 3, max = 8, num_ex = 20, **kwargs):
-    pass
+def generate_rule_interaction(file_name, new_data_name, rule, **kwargs):
+    
+    # get kwargs
+    objects_np = kwargs['objects_np']
+    symbol_to_fl = kwargs['symbol_to_fl']
+    fv_to_symbols = kwargs['fv_to_symbols']
+
+    # create csv
+    file = open(f'datasets/{new_data_name}.csv', 'w', newline='')
+    writer = csv.writer(file)
+
+    # open file with data in it already
+    csv_file = open(f'datasets/{file_name}')
+    csv_reader = csv.reader(csv_file, delimiter=',')
+
+    # get rule sets
+    left_phons = data_utils.get_natural_class(rule['left'], fv_to_symbols, objects_np)
+    targ_phons = data_utils.get_natural_class(rule['target'], fv_to_symbols, objects_np)
+    right_phons = data_utils.get_natural_class(rule['right'], fv_to_symbols, objects_np)
+
+    # process row by row, changing 
+    for u_rep, s_rep in csv_reader:
+
+        # create list of phonemes
+        new_word = list(s_rep)
+        print(new_word)
+
+        # check each triple
+        for symbol_idx in range(1, len(new_word) - 1):
+            print("triple: ", new_word[symbol_idx - 1], new_word[symbol_idx], new_word[symbol_idx+1])
+            rule_one_hot = []
+
+            # otherwise, check each triple for rule context match
+            rule_one_hot.append(new_word[symbol_idx-1] in left_phons)
+            rule_one_hot.append(new_word[symbol_idx] in targ_phons)
+            rule_one_hot.append(new_word[symbol_idx+1] in right_phons)
+
+            # if context match 
+            if all(rule_one_hot):
+                # apply rule
+                new_word[symbol_idx] = apply_rule(new_word[symbol_idx], rule['change'], symbol_to_fl, fv_to_symbols)
+            
+        # write into the new dataset file
+        writer.writerow([u_rep, ''.join(new_word)])
+
+
 
 """
 DOCS
@@ -203,26 +248,38 @@ Documentation
 NOTE: contexts are one hot encodings of partial feature vector
 """
 def main(args):
-    
-    # process data
-    input_filepath = f"data/{args.file_name}.tsv"
-    output_filepath = f"data/{args.file_name}_data.npy"
-    features_list_filepath = f"data/{args.file_name}_features.txt"
-    columns_to_remove=('symbol',)
-    _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
-        data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
-                                            features_list_filepath, columns_to_remove)
 
     # get rule
     global rule
 
-    generate_from_rule(args.data_name, rule, args.w_min, args.w_max, args.num_ex, input_filepath=input_filepath, objects_np=objects_np, symbols=symbols, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
+    # check if generating from pre-existing data or not
+    if args.gen_inter:
+        # process data
+        input_filepath = f"data/features.tsv"
+        output_filepath = f"data/feat_enc.npy"
+        features_list_filepath = f"data/features.txt"
+        columns_to_remove=('symbol',)
+        _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
+            data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
+                                                features_list_filepath, columns_to_remove)
+
+        generate_rule_interaction(args.file_name, args.data_name, rule, args.w_min, args.w_max, args.num_ex, objects_np=objects_np, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
+    else:
+        # process data
+        input_filepath = f"data/{args.file_name}.tsv"
+        output_filepath = f"data/{args.file_name}_data.npy"
+        features_list_filepath = f"data/{args.file_name}_features.txt"
+        columns_to_remove=('symbol',)
+        _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
+            data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
+                                                features_list_filepath, columns_to_remove)
+        generate_from_rule(args.data_name, rule, args.w_min, args.w_max, args.num_ex, input_filepath=input_filepath, objects_np=objects_np, symbols=symbols, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
 
 
 """
 Documentation
 """
-#TODO replace arguments
+#TODO make args more robust
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--file_name", type=str, required=True)
@@ -230,6 +287,7 @@ if __name__ == '__main__':
     parser.add_argument("--w_min", type=int, default=3)
     parser.add_argument("--w_max", type=int, default=8)
     parser.add_argument("--num_ex", type=int, default=20)
+    parser.add_argument("--gen_inter", type=bool, default=False)
 
     args = parser.parse_args()
     print(vars(args))

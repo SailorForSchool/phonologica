@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from flask import Flask, abort, jsonify, request
 import phonologica
+import data_utils
 
 from flag import *
 
@@ -57,10 +58,9 @@ def infer_rules(words):
 
   # list of partial feature vectors
   changes = phonologica.infer_changes(data)
-  # list of dictionaries with left, right, target, change
-  simple_rules = phonologica.infer_rules(data, changes)
-  # list of dictionaries with left, right, target, change (same as above)
-  rules = phonologica.combine_rules(simple_rules)
+  
+  # dictionary with rule ordering, each "order" contains  rules - list of dictionaries with left, right, target, change
+  rules = phonologica.infer_rules(data, data, changes)
   
   # TODO add inline here!
   formated_rules = []

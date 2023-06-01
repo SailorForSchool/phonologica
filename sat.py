@@ -35,6 +35,17 @@ def infer_rule(data, change_rule):
   rule = query_z3(triples_changed, feature_sizes)
   return rule
 
+def infer_rule_order(rule_pairs, data):
+  for rule_1, rule_2 in rule_pairs:
+    # get rule dictionary and context dictionary
+
+    # first examine for feeding / bleeding relationship
+
+    # then examine underlying data
+
+    # determine order
+    
+    pass
 
 """
 Docs

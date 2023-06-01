@@ -81,14 +81,15 @@ def infer_changes(data):
     print ("In phonologica.infer_changes\n")
   # END DEBUG
 
-
   # TODO equality?
-  changes = [(old, new) for ((_, old, _), (_, new, _)) in data if old != new]
+  changes = [(old, new) for ((_, old, _), (_, new, _)) in data if prague.HashableArray(old) != prague.HashableArray(new)]
   changes_to_infer = set()
 
   # for every pair of changed phonemes
   for und_featv, sur_featv in changes:
     rule_target = []
+
+    print(und_featv, sur_featv)
 
     # evaluate every feature
     for idx in range(len(FEAT_ORDERING)):
@@ -106,21 +107,40 @@ def infer_changes(data):
         rule_target.append(0)
     
     # add to set of changes seen
-    changes_to_infer.add(rule_target)
+    changes_to_infer.add(prague.HashableArray(np.array(rule_target)))
 
   # DEBUG OUTPUT
   if (P_CHANGE_V):
     print ("Changes to infer: ", changes_to_infer)
   # END DEBUG
 
-  return changes_to_infer
+  # return np.arrays
+  return [change.unwrap() for change in changes_to_infer]
 
 """
-TODO: LOGIC FOR ITERATION HERE
+DOCS
 """
-def infer_rules(data, change_rule):
+def infer_rules(original_data, data, changes_to_infer):
 
-  pass
+  # for each change, infer the rule
+  rules = [infer_rule(data, change) for change in changes_to_infer]
+
+  # combine rules that were split
+  rules = combine_rules(rules)
+
+  # examine pairwise to discover ordering
+  # NOTE: rule_ordering = {1: [{rules}], 2: [...], ...}
+  rule_pairs = list(itertools.combinations(rules, 2))
+  rule_ordering = sat.infer_rule_order(rule_pairs, data)
+
+  # work back from the original data
+  new_data = apply_rules_from_surface(rule_ordering, original_data)
+
+  # check to see if all rules ahve been discovered
+  if all([prague.HashableArray(und) == prague.HashableArray(surf) for und, surf in data]):
+    return rule_ordering
+  else:
+    return infer_rules(original_data, new_data, infer_changes(new_data))
 
 """
 TODO: logic for single rule here
@@ -128,6 +148,14 @@ TODO: logic for single rule here
 def infer_rule(data, change_rule):
   return sat.infer_rule(data, change_rule)
 
-"""TODO"""
+"""
+TODO: apply the rules backwards here, use new quality of life features
+"""
+def apply_rules_from_surface(rule_ordering, original_data):
+  pass
+
+"""
+TODO
+"""
 def combine_rules(rules):
   pass
