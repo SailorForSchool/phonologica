@@ -8,9 +8,12 @@ from flag import *
 """
 ADD DOCS TODO
 """
+input_filepath = "data/features.tsv"
+output_filepath = "data/features_data.npy"
+features_list_filepath = f"data/features.txt"
 FEAT_ORDERING, OBJ_NP, SYMBOLS, SYMBOL_TO_FL, FV_TO_SYMBOLS = \
-  data_utils.preprocess_phoneme_data( input_filepath="data/features.tsv", output_filepath="data/feat_enc.npy",
-                                      features_list_filepath="data/features.txt", columns_to_remove=('symbol',))
+  data_utils.preprocess_phoneme_data( input_filepath, output_filepath,
+                                      features_list_filepath, columns_to_remove=('symbol',))
 
 # TODO? FEATURE_TO_INDEX???
 

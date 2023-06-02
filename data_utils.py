@@ -1,3 +1,4 @@
+from os.path import exists
 import prague
 import numpy as np
 from funcy import *
@@ -5,28 +6,44 @@ from funcy import *
 """
 DOCS
 
-TODO: add check for npy / features and load instead
 """
 def preprocess_phoneme_data(input_filepath, output_filepath, features_list_filepath, columns_to_remove="None"):
 
     # get phonemes
     objects = prague.convert.load_objects(input_filepath)
 
-    # check well formedness
-    prague.convert.have_universal_feature_definitions(objects, 
-                                                    behavior='Exception')
-    prague.convert.objects_are_unique(objects,
-                                    features_to_ignore=None,
-                                    behavior='Exception')
+    if (exists(output_filepath) and exists(features_list_filepath)):
+        # get numpy vectors directly
+        objects_np = np.load(output_filepath)
 
-    # preprocess and transform
-    preprocessed_objects = prague.convert.preprocess_objects(objects, 
-                                                            keys_to_remove=columns_to_remove)
+        # get feature ordering
+        feature_ordering = []
+        with open(features_list_filepath, 'r') as feature_file:
+            for feature in feature_file:
+                feature_ordering.append(feature.strip())
 
-    # get ordering of the features and convert, assuming no duplicates
-    feature_ordering = tuple(sorted(preprocessed_objects[0].keys()))
-    objects_np, _ = prague.convert.to_ternary_feature_vectors(preprocessed_objects,
-                                                            feature_ordering=feature_ordering)
+    else:
+        # check well formedness
+        prague.convert.have_universal_feature_definitions(objects, 
+                                                        behavior='Exception')
+        prague.convert.objects_are_unique(objects,
+                                        features_to_ignore=None,
+                                        behavior='Exception')
+
+        # preprocess and transform
+        preprocessed_objects = prague.convert.preprocess_objects(objects, 
+                                                                keys_to_remove=columns_to_remove)
+
+        # get ordering of the features and convert, assuming no duplicates
+        feature_ordering = tuple(sorted(preprocessed_objects[0].keys()))
+        objects_np, _ = prague.convert.to_ternary_feature_vectors(preprocessed_objects,
+                                                                feature_ordering=feature_ordering)
+        
+        # export to load in future
+        prague.convert.export_ternary_feature_vectors(objects_np,
+                                                    feature_ordering,
+                                                    output_filepath,
+                                                    features_list_filepath)
 
     # create symbols / feature maps
     symbols = [o['symbol'] for o in objects]
@@ -34,12 +51,6 @@ def preprocess_phoneme_data(input_filepath, output_filepath, features_list_filep
     fv_to_symbols = {prague.HashableArray(fv):{s for s in symbol_to_fv
                                                if np.array_equal(fv, symbol_to_fv[s])}
                      for fv in objects_np}
-
-    # export
-    prague.convert.export_ternary_feature_vectors(objects_np,
-                                                feature_ordering,
-                                                output_filepath,
-                                                features_list_filepath)
 
     return feature_ordering, objects_np, symbols, symbol_to_fv, fv_to_symbols
 

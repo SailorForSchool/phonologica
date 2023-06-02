@@ -2,7 +2,6 @@ import sys
 sys.path.append('.')
 sys.path.append('./prague')
 
-import argparse
 import generator.generate_data as generate_data
 import data_utils
 

@@ -1,3 +1,5 @@
 __pycache__
+.DS_Store
 generator/__pycache__
+generator/.DS_Store
 scratch.py

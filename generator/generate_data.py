@@ -12,10 +12,9 @@ import data_utils
 import numpy as np
 
 """ Here is the rule the data will be generated to follow """
-
-rules = [{'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]},
-         {'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]},
-         {'left': [0,0,0,1,0], 'right': [0,0,0,1,0], 'target': [0,0,0,1,0], 'change': [0,0,0,-1,0]}]
+# eighth fourth odd upper
+rules = [{'target': [0,0,0,1], 'change': [-1,0,0,0], 'left': [0,0,0,1], 'right': [0,0,0,0] },
+         {'target': [0,0,1,0], 'change': [0,0,0,1], 'left': [0,0,0,0], 'right': [0,0,0,1] }]
 
 
 """
@@ -80,9 +79,6 @@ def generate_from_rule(name, rule, min = 3, max = 8, num_ex = 20, **kwargs):
     file.close()
 
     # this is included in case sanity checks are added in the future
-    print("left phonemes: ", left_phonemes)
-    print("right phonemes: ", right_phonemes)
-    print("target phonemes: ", target_phonemes)
     return left_phonemes, target_phonemes, right_phonemes
 
 
@@ -114,11 +110,9 @@ def generate_rule_interaction(old_data_name, new_data_name, rule, **kwargs):
 
         # create list of phonemes
         new_word = list(s_rep)
-        print(new_word)
 
         # check each triple
         for symbol_idx in range(1, len(new_word) - 1):
-            print("triple: ", new_word[symbol_idx - 1], new_word[symbol_idx], new_word[symbol_idx+1])
             rule_one_hot = []
 
             # otherwise, check each triple for rule context match
@@ -131,6 +125,7 @@ def generate_rule_interaction(old_data_name, new_data_name, rule, **kwargs):
                 # apply rule
                 new_word[symbol_idx] = apply_rule(new_word[symbol_idx], rule['change'], symbol_to_fl, fv_to_symbols)
             
+                print("prev: ", s_rep, " new: ", new_word)
         # write into the new dataset file
         writer.writerow([u_rep, ''.join(new_word)])
 
@@ -172,18 +167,24 @@ def gen_random_word(w_len, rule, objects_np, symbols, fv_to_symbols):
         # if context match 
         if all(rule_one_hot):
 
-            # sample randomly
-            idx_offest = np.random.randint(-1, 2)
+            sample_phon = None
 
-            # resample chosen phoneme
-            if idx_offest == -1:
-                context_violated = 'left'
-            elif idx_offest == 0:
-                context_violated = 'target'
-            elif idx_offest == 1:
-                context_violated = 'right'
+            while(sample_phon == None):
 
-            word[symbol_idx + idx_offest] = sample_non_context_phoneme(rule[context_violated],  objects_np, symbols, fv_to_symbols)
+                # sample randomly
+                idx_offest = np.random.randint(-1, 2)
+
+                # resample chosen phoneme
+                if idx_offest == -1:
+                    context_violated = 'left'
+                elif idx_offest == 0:
+                    context_violated = 'target'
+                elif idx_offest == 1:
+                    context_violated = 'right'
+
+                sample_phon = sample_non_context_phoneme(rule[context_violated],  objects_np, symbols, fv_to_symbols)
+
+            word[symbol_idx + idx_offest] = sample_phon
 
     # return the word as a string
     return ''.join(word)
@@ -207,11 +208,14 @@ NOTE: can't sample from no context rules
 """
 def sample_non_context_phoneme(context, objects_np, symbols, fv_to_symbols):
 
-    NOT_phons = data_utils.get_natural_class(context, fv_to_symbols, objects_np)
-    phons = [phoneme for phoneme in symbols if phoneme not in NOT_phons]
+    phons = data_utils.get_natural_class(context, fv_to_symbols, objects_np)
+    not_phons = [phoneme for phoneme in symbols if phoneme not in phons]
 
+    if (len(not_phons) == 0):
+        return None
+    
     # sample randomly from list
-    symbol_idx = np.random.randint(0, len(phons))
+    symbol_idx = np.random.randint(0, len(not_phons))
 
     return phons[symbol_idx]
     
@@ -253,37 +257,36 @@ def main(args):
 
     # get rules
     global rules
+    
+    # number of rules applied in file
+    affix = 1
 
-    # check if generating from pre-existing data or not
-    # if args.gen_inter:
-    #     # process data
-    #     input_filepath = f"data/features.tsv"
-    #     output_filepath = f"data/feat_enc.npy"
-    #     features_list_filepath = f"data/features.txt"
-    #     columns_to_remove=('symbol',)
-    #     _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
-    #         data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
-    #                                             features_list_filepath, columns_to_remove)
+    # process features
+    input_filepath = f"data/{args.tsv_name}.tsv"
+    output_filepath = f"data/{args.tsv_name}_data.npy"
+    features_list_filepath = f"data/{args.tsv_name}.txt"
+    columns_to_remove=('symbol',)
+    _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
+        data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
+                                            features_list_filepath, columns_to_remove)
+    generate_from_rule(f"{args.data_name}_{affix}", rules[0], args.w_min, args.w_max, args.num_ex, input_filepath=input_filepath, objects_np=objects_np, symbols=symbols, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
+    
 
-    #     generate_rule_interaction(args.tsv_name, args.data_name, rule, args.w_min, args.w_max, args.num_ex, objects_np=objects_np, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
-    # else:
-        # process data
-        input_filepath = f"data/{args.tsv_name}.tsv"
-        output_filepath = f"data/{args.tsv_name}_data.npy"
-        features_list_filepath = f"data/{args.tsv_name}_features.txt"
-        columns_to_remove=('symbol',)
-        _, objects_np, symbols, symbol_to_fl, fv_to_symbols = \
-            data_utils.preprocess_phoneme_data( input_filepath, output_filepath, 
-                                                features_list_filepath, columns_to_remove)
-        generate_from_rule(args.data_name, rule, args.w_min, args.w_max, args.num_ex, input_filepath=input_filepath, objects_np=objects_np, symbols=symbols, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
-        
-        if (args.multiple_rules)
+    if (args.mult_rules):
+        for rule in rules[1:]:
+            print("NEXT")
+            generate_rule_interaction(f"{args.data_name}_{affix - 1}", f"{args.data_name}_{affix}", rule, objects_np=objects_np, symbol_to_fl=symbol_to_fl, fv_to_symbols=fv_to_symbols)
+            affix += 1
 
+    fw = open(f'datasets/{args.data_name}_metadata.csv', "w", newline='')
+    writer = csv.DictWriter(fw, fieldnames=["left", "right", "target", "change"])
+    writer.writeheader()
+    writer.writerows(rules)
+    fw.close()
 
 """
 Documentation
 """
-#TODO make args more robust
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--tsv_name", type=str, required=True)
@@ -291,17 +294,10 @@ if __name__ == '__main__':
     parser.add_argument("--w_min", type=int, default=3)
     parser.add_argument("--w_max", type=int, default=8)
     parser.add_argument("--num_ex", type=int, default=20)
-    parser.add_argument("--multiple_rules", type=bool, default=False)
+    parser.add_argument("--mult_rules", type=bool, default=False)
 
     args = parser.parse_args()
     print(vars(args))
     main(args)
-
-    """
-    TODO'S:
-    add list of rules instead of rules
-    name datasets generated with # according to rules applied
-    spit out metadata about what rule is in each file in metadata_{data_name}.txt
-    """
 
 

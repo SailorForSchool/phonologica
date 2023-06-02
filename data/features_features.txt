@@ -1,0 +1,5 @@
+eighth
+fourth
+odd
+upper
+word_boundary
