@@ -84,7 +84,7 @@ def infer_changes(data):
     print ("In phonologica.infer_changes\n")
   # END DEBUG
 
-  # TODO equality?
+  # identify any phoneme that is different in the surface representation than in the underlying representation
   changes = [(old, new) for ((_, old, _), (_, new, _)) in data if prague.HashableArray(old) != prague.HashableArray(new)]
   changes_to_infer = set()
 
@@ -92,7 +92,8 @@ def infer_changes(data):
   for und_featv, sur_featv in changes:
     rule_target = []
 
-    print(und_featv, sur_featv)
+    if (P_CHANGE_V):
+      print("In phonologica.infer_changes:\nUnderlying Phoneme: ", und_featv, "\nSurface Phoneme: ", sur_featv)
 
     # evaluate every feature
     for idx in range(len(FEAT_ORDERING)):
@@ -117,7 +118,7 @@ def infer_changes(data):
     print ("Changes to infer: ", changes_to_infer)
   # END DEBUG
 
-  # return np.arrays
+  # return a list of the changes, as partial feature vectors (np.arrays)
   return [change.unwrap() for change in changes_to_infer]
 
 """
@@ -126,7 +127,7 @@ DOCS
 def infer_rules(original_data, data, changes_to_infer):
 
   # for each change, infer the rule
-  rules = [infer_rule(data, change) for change in changes_to_infer]
+  rules = {prague.HashableArray(change): infer_rule(data, change) for change in changes_to_infer}
 
   # combine rules that were split
   rules = combine_rules(rules)
@@ -161,4 +162,5 @@ def apply_rules_from_surface(rule_ordering, original_data):
 TODO
 """
 def combine_rules(rules):
-  pass
+  for change, context in rules:
+    pass

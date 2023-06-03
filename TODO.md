@@ -30,8 +30,4 @@
 ## Questions
 How to make __init__.py pretty?
 
-Are either of these correct? -> no find the correct syntax!!
-
-`conda env create -name phonologica -f prague/prague_env.yml` 
-
-`conda env update --name phonologica --file requirements.txt --prune`
+`conda env create -f phonologica_env.yml`

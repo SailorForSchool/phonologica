@@ -1,0 +1,30 @@
+name: phonologica
+channels:
+   - conda-forge
+   - defaults
+   - pytorch
+dependencies:
+   - python>=3.10,<3.11
+   - conda-build
+   - pip
+   - scipy
+   - matplotlib
+   - numpy
+   - tqdm
+   - joblib
+   - nose
+   - pytest
+   - funcy
+   - cloudpickle
+   - murmurhash
+   - toolz
+   - xxhash
+   - pip:
+        - more_itertools
+       - argparse==1.4.0
+       - Click==8.0
+       - Flask==2.0.2
+       - itsdangerous==1.1.0
+       - Jinja2==3.0.0
+       - MarkupSafe==2.1.1
+       - z3-solver==4.12.2.0

@@ -7,7 +7,7 @@ the codebase
 """
 
 # make this false to turn off verbose flags
-VERBOSE = True
+VERBOSE = False
 
 APP = True
 # flags for app.py

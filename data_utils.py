@@ -61,7 +61,7 @@ DOCS
 def get_natural_class(partial_feat_list, fv_to_symbols, objects_np):
 
     # use to retrieve feature vectors (fv) for each phoneme in class
-    feat_vectors = get_vector_nt_class(partial_feat_list, objects_np)
+    feat_vectors = get_vector_ntrl_class(partial_feat_list, objects_np)
 
     # construct natural class
     nat_class = []
@@ -75,7 +75,7 @@ def get_natural_class(partial_feat_list, fv_to_symbols, objects_np):
 """
 Docs
 """
-def get_vector_nt_class(partial_feat_list, objects_np):
+def get_vector_ntrl_class(partial_feat_list, objects_np):
     # get list of objects described by partial feature vector (one hot)
     ext = prague.extension(np.array(partial_feat_list), objects_np)
     # use to retrieve feature vectors (fv) for each phoneme in class
@@ -86,7 +86,7 @@ Docs
 """
 def feat_vector_in_class(feat_vector, partial_feat_v, objects_np):
     # get natural class from partial feature vector
-    nat_class = get_vector_nt_class(partial_feat_v, objects_np)
+    nat_class = get_vector_ntrl_class(partial_feat_v, objects_np)
 
     # create hashable list
     nat_class = [prague.HashableArray(fv) for fv in nat_class]
@@ -98,3 +98,32 @@ DOCS
 """
 def get_phoneme(feat_list, fv_to_symbols):
     return list(fv_to_symbols[prague.HashableArray(feat_list)])[0]
+
+"""
+DOC
+"""
+def apply_rule_to_phoneme(target_phoneme, change, symbol_to_fl, fv_to_symbols):
+
+    # transform to feature vector
+    feature_list = symbol_to_fl[target_phoneme]
+
+    # generate new array
+    new_array = apply_rule_to_fv(feature_list, change)
+    
+    # return phoneme
+    return get_phoneme(new_array, fv_to_symbols)
+
+"""
+DOC
+"""
+def apply_rule_to_fv(target_fv, change):
+
+    new_array = np.copy(target_fv)
+    
+    # create new phoneme target with changes
+    for i, context_value in enumerate(change):
+        if context_value != 0:
+            new_array[i] = context_value
+
+    # return the SR feature vector of the target
+    return new_array

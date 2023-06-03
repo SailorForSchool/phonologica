@@ -1,7 +1,12 @@
 import z3
+import prague
+import phonologica
+import data_utils
 from flag import *
 
-POSITIONS = ['left', 'center', 'right']
+POSITIONS = ['left', 'target', 'right']
+INCLUDED = ' included'
+POSITIVE = ' positive'
 
 """
 DOCS
@@ -9,30 +14,45 @@ DOCS
 def to_ident(feature, position):
   return f'|{feature} {position}|'
 
-
 """
 DOCS
 """
 def infer_rule(data, change_rule):
   if (S_INFERR):
     print("In sat.infer_rules\n")
+  
+  # mark every triple that exhibits this change, remove vacuous applications
   triples_changed = []
-  if (S_INFERR):
-    print("For each triple, apply_change is called.\n")
-  for (l, c, r), new_c in data:
-    changed_c = apply_change(c, change_rule)
-    if changed_c !=  c:
-      triples_changed.append(((l, c, r), c != new_c))
-
+  for und_rep, surf_rep in data:
+    # if the change occurs here, consider
+    if prague.HashableArray(surf_rep[1]) == prague.HashableArray(data_utils.apply_rule_to_fv(und_rep[1], change_rule)):
+      # do not consider vacuous applications, remove
+      if prague.HashableArray(surf_rep[1]) != prague.HashableArray(und_rep[1]):
+        triples_changed.append(((und_rep, surf_rep), True))
+    else:
+      triples_changed.append(((und_rep, surf_rep), False))
+  
   # DEBUG OUTPUT: in features not phoneme
+  if (S_INFERR):
+    print("For each triple, constraints are added based on relationship to change_rule.\n")
+
   if (S_INFER_V):
     print("changed triples: \n")
-    for (le, t, ri), b in triples_changed:
+    for ((l, t, r), (ls, ts, rs)), b in triples_changed:
       if (b):
-        print("features list - triple: ", le, t, ri)
+        print("features list - underlying triple: ", l, t, r)
+        print("features list - surface triple: ", ls, ts, rs)
+
+  if (S_INFER_V):
+    print("non-changed triples: \n")
+    for ((l, t, r), (ls, ts, rs)), b in triples_changed:
+      if (not b):
+        print("features list - underlying triple: ", l, t, r)
+        print("features list - surface triple: ", ls, ts, rs)
   # DEBUG END
 
-  rule = query_z3(triples_changed, feature_sizes)
+  # find rule
+  rule = query_z3(triples_changed)
   return rule
 
 def infer_rule_order(rule_pairs, data):
@@ -44,7 +64,7 @@ def infer_rule_order(rule_pairs, data):
     # then examine underlying data
 
     # determine order
-    
+
     pass
 
 """
@@ -52,16 +72,52 @@ Docs
 """
 def shared_features(triples):
   shared = None
-  for triple in triples:
+
+  # get the contexts for the rule - left surface, target underlying, and right surface
+  contexts = [(left, target, right) for (_, target, _), (left, _, right) in triples]
+
+  # for each context, collect features seen
+  for context in contexts:
     features = set()
-    for i, phone in enumerate(triple):
-      features |= {((feature, POSITIONS[i]), value) for feature, value in phone.items() if value != '0'}
+
+    # for each context position, add into set
+    for pos_idx, phone_fv in enumerate(context):
+      features |= {((feature, POSITIONS[pos_idx]), value) for value, feature in zip(phone_fv, phonologica.FEAT_ORDERING) if value != '0'}
+    
+    # create shared set using intersection
     if shared == None:
       shared = features
     else:
       shared &= features
+
+  # output format: {('feature', 'position') : value, ...} for every feature / position shared
   return dict(shared)
 
+"""
+Docs
+"""
+def collect_features(triples):
+  feat_collection = []
+
+  # get the contexts for the rule - left surface, target underlying, and right surface
+  contexts = [(left, target, right) for (_, target, _), (left, _, right) in triples]
+
+  # for each context, collect features seen
+  for context in contexts:
+    features = set()
+
+    # for each context position, add into set
+    for pos_idx, phone_fv in enumerate(context):
+      features |= {((feature, POSITIONS[pos_idx]), value) for value, feature in zip(phone_fv, phonologica.FEAT_ORDERING) if value != '0'}
+
+    # add to list of contexts
+    feat_collection.append(dict(features))
+  # output format: {('feature', 'position') : value, ...} for every feature / position shared
+  return feat_collection
+
+"""
+TODO ????
+"""
 def apply_change(features, rule):
 
   new_features = dict(features)
@@ -75,93 +131,108 @@ def apply_change(features, rule):
   # END DBEUG
 
   return new_features
-    
-def query_z3(triples_changed, feature_sizes):
-  shared = shared_features([triple for triple, changed in triples_changed if changed])
-  idents_to_features = {to_ident(feature, position): (feature, position) for feature, position in shared.keys()}
+
+"""
+TODO
+"""
+def query_z3(triples_changed):
   
+  # compute context -> output format: {('feature', 'position') : value, ...} for every feature / position shared
+  context = shared_features([triple for triple, changed in triples_changed if changed])
+
+  # collect not context -> output format: [{('feature', 'position') : value, ...}, {...}, ...] for each triple
+  not_context = collect_features([triple for triple, changed in triples_changed if not changed])
+  unchanged = [triple for triple, changed in triples_changed if not changed]
+
+  # DEBUG OUTPUT
+  if(S_QUERY):
+    print("context: ", context)
+  # END DEBUG
+  
+  # create dictionary for converting z3 output from both of the above
+  idents_to_feat = {to_ident(feature, position): (feature, position) for feature, position in context.keys()}
+
+  # delete? TODO
+  # for triple_context in not_context:
+  #   for feature, position in triple_context.keys():
+  #     idents_to_feat[to_ident(feature, position)] = (feature, position)
+  
+  # create solver for inference
   solver = z3.Optimize()
 
-  soft_assertions = []
-  position_weights = {
-    'left': 1000,
-    'center': 0,
-    'right': 1000
-  }
-  for ident, (feature, position) in idents_to_features.items():
-    # hmmm?
-    solver.add_soft(z3.Not(z3.Bool(ident)), weight=10000 + position_weights[position] + feature_sizes[(feature, shared[(feature, position)])])
-  
-  debug = []
-  # for every triple...
-  for triple, changed in triples_changed:
-    conjunction = []
+  # add a soft constraint against all variables to bias towards minimizing True values in the included set
+  for ident in idents_to_feat.keys():
+    solver.add_soft(z3.Not(z3.Bool(ident + INCLUDED)))
+
+  # encode the known shared features of the change, if a feature is included then we can infer the value of the feature
+  for (feature, position) in context.keys():
+    # get value
+    value = context[(feature, position)]
+    
+    # create a boolean that will encode if the value of a feature is positive (non zero value garenteed)
+    feat_value = z3.Bool(to_ident(feature, position) + POSITIVE)
+
+    # if the value is negative, then 'positive' must be false
+    if value == -1:
+      feat_value = z3.Not(feat_value)
+
+    # add infered value
+    solver.add(z3.Implies(z3.Bool(to_ident(feature, position) + INCLUDED), feat_value))
+
+  # use counter-examples to determine which feature position pairs are necessary and their value
+  conjunction = []
+  for counter_example, triple in zip(not_context, unchanged):
+
+    # for each example, consider which features exempted the triple from the rule
+    example_constraints = []
+    for (feature, position) in counter_example:
+
+      # only consider features that are shared among examples
+      if (feature, position) in context.keys():
+
+        # get value
+        value = counter_example[(feature, position)]
+
+        # ignore matching values
+        if value == context[(feature, position)]:
+          continue
+
+        # calculate feature value in rule to create counter-example
+        not_feat_value = z3.Bool(to_ident(feature, position) + POSITIVE)
+        if value == 1:
+          not_feat_value = z3.Not(not_feat_value)
+        # feat can have any value for 0
+        elif value == 0:
+          not_feat_value = True
+
+        # if this is the feature that exempted the example, then the value in the context must be opposite of counter example
+        included = z3.Bool(to_ident(feature, position) + INCLUDED)
+        feat_is_constraint = z3.And(included, not_feat_value)
+        feat_is_not_con = z3.Not(included)
+        example_constraints.append(z3.Or(feat_is_constraint, feat_is_not_con))
+    
+    # add to counter examples
+    if example_constraints != []:
+      conjunction.append(z3.And(*example_constraints))
+    
+  # rule must satisfy all examples
+  solver.add(z3.And(*conjunction))
 
 
-    # for every phone in triple...
-    for i, phone in enumerate(triple):
-      # for every feature in phone...
-      for feature in phone.keys():
-
-
-        # record position of phone in triple
-        position = POSITIONS[i]
-        # if the feature, position is sharded among triples
-        if (feature, position) in shared:
-
-
-          # format for solver
-          ident = to_ident(feature, position)
-
-
-          # mark if included (+ or -) BOOL
-          included = phone[feature] != '0'
-          # mark if the feature has matches the value in the shared changed triples
-          matches = phone[feature] == shared[(feature, position)]
-
-
-
-          # (feature_position_pair AND included) => matches
-          conjunction.append(z3.Implies(z3.And(z3.Bool(ident), included), matches))
-
-          # TODO DEBUG
-          if (S_QUERY):
-            if ((not matches) and (not changed) and included):
-              if ident + " (no rule)" not in debug:
-                print (ident, " may be included (no rule application)")
-                debug.append(ident + " (no rule)")
-            if ((not matches) and changed and included):
-              if ident + " (rule)" not in debug:
-                print (ident, " must NOT be included (rule application)")
-                debug.append(ident + " (rule)")
-          # END DEBUG
-
-    # per triple, check if there was a change
-    if conjunction != []:
-      
-      # if change -> add all conjunction as constraint
-      if changed:
-        solver.add(z3.And(*conjunction))
-
-      # if not changed -> add conjunction as NOT constraint
-      else:
-        # encoding counter examples - explicitly the implicational relationship must be false because
-        # the context of the "rule" if the feature position pair is included is present and so
-        # the lack of change implies that it is explicitly NOT in the rule
-        solver.add(z3.Not(z3.And(*conjunction)))
-
-
+  # TODO HERE
   if solver.check() == z3.sat:
-    rule = (dict(), dict(), dict())
+    rule = {}
     model = solver.model()
     for ident in model:
       if z3.is_true(model[ident]):
-        feature, position = idents_to_features[str(ident)]
-        rule[POSITIONS.index(position)][feature] = shared[(feature, position)]
-        print ("rule: ", rule)
-    return rule
+        print(ident)
+    #     feature, position = idents_to_features[str(ident)]
+    #     rule[POSITIONS.index(position)][feature] = shared[(feature, position)]
+    #     print ("rule: ", rule)
+    return {'left': 0, 'right': 0, 'target': 0}
   else:
     print('unsat')
+    return None
 
 
 

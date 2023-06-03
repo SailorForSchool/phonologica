@@ -123,7 +123,7 @@ def generate_rule_interaction(old_data_name, new_data_name, rule, **kwargs):
             # if context match 
             if all(rule_one_hot):
                 # apply rule
-                new_word[symbol_idx] = apply_rule(new_word[symbol_idx], rule['change'], symbol_to_fl, fv_to_symbols)
+                new_word[symbol_idx] = data_utils.apply_rule_to_phoneme(new_word[symbol_idx], rule['change'], symbol_to_fl, fv_to_symbols)
             
                 print("prev: ", s_rep, " new: ", new_word)
         # write into the new dataset file
@@ -197,7 +197,7 @@ def gen_rule_triple(rule, fv_to_symbols, objects_np, symbol_to_fl):
     l = sample_context_phoneme(rule['left'], fv_to_symbols, objects_np)
     t = sample_context_phoneme(rule['target'], fv_to_symbols, objects_np)
     r = sample_context_phoneme(rule['right'], fv_to_symbols, objects_np)
-    c = apply_rule(t, rule['change'], symbol_to_fl, fv_to_symbols)
+    c = data_utils.apply_rule_to_phoneme(t, rule['change'], symbol_to_fl, fv_to_symbols)
 
     return l+t+r, l+c+r
     
@@ -229,22 +229,6 @@ def sample_context_phoneme(context, fv_to_symbols, objects_np):
     # sample randomly from list
     symbol_idx = np.random.randint(0, len(phons))
     return phons[symbol_idx]
-
-"""
-DOC
-"""
-def apply_rule(target_phoneme, change, symbol_to_fl, fv_to_symbols):
-
-    feature_list = symbol_to_fl[target_phoneme]
-    new_array = np.copy(feature_list)
-    
-    # create new phoneme target with changes
-    for i, context_value in enumerate(change):
-        if context_value != 0:
-            new_array[i] = context_value
-
-    # return the SR of the target
-    return data_utils.get_phoneme(new_array, fv_to_symbols)
 
 
 
