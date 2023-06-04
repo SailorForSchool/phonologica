@@ -7,9 +7,9 @@ the codebase
 """
 
 # make this false to turn off verbose flags
-VERBOSE = False
+VERBOSE = True
 
-APP = True
+APP = False
 # flags for app.py
 H_INFER = True
 H_INFER_V = True
@@ -18,8 +18,8 @@ INFER_V = True
 
 PHONOSYNTH = True
 # flags for phonosynth.py
-PARSE = True
-PARSE_V = True
+PARSE = False
+PARSE_V = False
 P_CHANGE = True
 P_CHANGE_V = True
 
@@ -30,7 +30,7 @@ S_INFER_V = True
 S_INFERR = True
 S_INFERR_V = True
 S_APCH = True
-S_APCH_V = True
+S_APCH_V = False
 S_QUERY = True
 
 

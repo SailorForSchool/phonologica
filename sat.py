@@ -24,14 +24,29 @@ def infer_rule(data, change_rule):
   # mark every triple that exhibits this change, remove vacuous applications
   triples_changed = []
   for und_rep, surf_rep in data:
-    # if the change occurs here, consider
-    if prague.HashableArray(surf_rep[1]) == prague.HashableArray(data_utils.apply_rule_to_fv(und_rep[1], change_rule)):
-      # do not consider vacuous applications, remove
-      if prague.HashableArray(surf_rep[1]) != prague.HashableArray(und_rep[1]):
-        triples_changed.append(((und_rep, surf_rep), True))
-    else:
-      triples_changed.append(((und_rep, surf_rep), False))
-  
+    change = False
+    target = und_rep[1]
+    surface_t = surf_rep[1]
+
+    # if the change occurs here, consider for this change_rule (no vacuous application)
+    if prague.HashableArray(target) != prague.HashableArray(surface_t):
+      
+      # check each featuire for the correct combination of changes
+      for (t_feat, s_feat, ch_feat) in zip(target, surface_t, change_rule):
+        # check if a different rule applied
+        if t_feat != s_feat and ch_feat == 0:
+          change = False
+          break
+        # check if this rule did not apply
+        elif t_feat == s_feat and ch_feat != 0:
+          change = False
+          break
+        # if the rule applies, then we should see the change in the surface form
+        elif t_feat != s_feat and s_feat == ch_feat:
+          change = True
+      
+    triples_changed.append(((und_rep, surf_rep), change))
+    
   # DEBUG OUTPUT: in features not phoneme
   if (S_INFERR):
     print("For each triple, constraints are added based on relationship to change_rule.\n")
@@ -40,20 +55,12 @@ def infer_rule(data, change_rule):
     print("changed triples: \n")
     for ((l, t, r), (ls, ts, rs)), b in triples_changed:
       if (b):
-        print("features list - underlying triple: ", l, t, r)
-        print("features list - surface triple: ", ls, ts, rs)
-
-  if (S_INFER_V):
-    print("non-changed triples: \n")
-    for ((l, t, r), (ls, ts, rs)), b in triples_changed:
-      if (not b):
-        print("features list - underlying triple: ", l, t, r)
-        print("features list - surface triple: ", ls, ts, rs)
+        print("underlying triple: ", data_utils.get_phoneme(l, phonologica.FV_TO_SYMBOLS), data_utils.get_phoneme(t, phonologica.FV_TO_SYMBOLS), data_utils.get_phoneme(r, phonologica.FV_TO_SYMBOLS))
+        print("surface triple: ", data_utils.get_phoneme(ls, phonologica.FV_TO_SYMBOLS), data_utils.get_phoneme(ts, phonologica.FV_TO_SYMBOLS), data_utils.get_phoneme(rs, phonologica.FV_TO_SYMBOLS))
   # DEBUG END
 
   # find rule
-  rule = query_z3(triples_changed)
-  return rule
+  return query_z3(triples_changed)
 
 def infer_rule_order(rule_pairs, data):
   for rule_1, rule_2 in rule_pairs:
@@ -82,7 +89,7 @@ def shared_features(triples):
 
     # for each context position, add into set
     for pos_idx, phone_fv in enumerate(context):
-      features |= {((feature, POSITIONS[pos_idx]), value) for value, feature in zip(phone_fv, phonologica.FEAT_ORDERING) if value != '0'}
+      features |= {((feature, POSITIONS[pos_idx]), value) for value, feature in zip(phone_fv, phonologica.FEAT_ORDERING) if value != 0}
     
     # create shared set using intersection
     if shared == None:
@@ -193,43 +200,49 @@ def query_z3(triples_changed):
         # get value
         value = counter_example[(feature, position)]
 
-        # ignore matching values
-        if value == context[(feature, position)]:
-          continue
+        # examine if the value is opposite to that of the 'context'
+        if value != context[(feature, position)]:
+          # at least one of the features in common must be either missing or the value is does not match
+          example_constraints.append(z3.Bool(to_ident(feature, position) + INCLUDED))
 
-        # calculate feature value in rule to create counter-example
-        not_feat_value = z3.Bool(to_ident(feature, position) + POSITIVE)
-        if value == 1:
-          not_feat_value = z3.Not(not_feat_value)
-        # feat can have any value for 0
-        elif value == 0:
-          not_feat_value = True
-
-        # if this is the feature that exempted the example, then the value in the context must be opposite of counter example
-        included = z3.Bool(to_ident(feature, position) + INCLUDED)
-        feat_is_constraint = z3.And(included, not_feat_value)
-        feat_is_not_con = z3.Not(included)
-        example_constraints.append(z3.Or(feat_is_constraint, feat_is_not_con))
-    
     # add to counter examples
     if example_constraints != []:
-      conjunction.append(z3.And(*example_constraints))
+      conjunction.append(z3.Or(*example_constraints))
     
   # rule must satisfy all examples
   solver.add(z3.And(*conjunction))
 
-
   # TODO HERE
   if solver.check() == z3.sat:
-    rule = {}
+    rule = {'left': [], 'target': [], 'right': []}
     model = solver.model()
+    
+    # add features that are included
+    feat_included =[]
     for ident in model:
-      if z3.is_true(model[ident]):
-        print(ident)
-    #     feature, position = idents_to_features[str(ident)]
-    #     rule[POSITIONS.index(position)][feature] = shared[(feature, position)]
-    #     print ("rule: ", rule)
-    return {'left': 0, 'right': 0, 'target': 0}
+      if z3.is_true(model[ident]) and INCLUDED in str(ident):
+        ident= str(ident).replace(INCLUDED, "")
+        feat_included.append(idents_to_feat[ident])
+    
+  # TODO add values here!!!
+
+    print(feat_included)
+
+    # use to construct rule
+    for position in POSITIONS:
+      for feature in phonologica.FEAT_ORDERING:
+        if (feature, position) in feat_included:
+          value = z3.is_true(model[to_ident(feature, position) + POSITIVE])
+          if value:
+            rule[position].append(1)
+          else:
+            rule[position].append(-1)
+        else:
+          rule[position].append(0)
+
+    print(rule)
+    return rule
+
   else:
     print('unsat')
     return None

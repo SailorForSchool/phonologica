@@ -13,8 +13,8 @@ import numpy as np
 
 """ Here is the rule the data will be generated to follow """
 # eighth fourth odd upper
-rules = [{'target': [0,0,0,1], 'change': [-1,0,0,0], 'left': [0,0,0,1], 'right': [0,0,0,0] },
-         {'target': [0,0,1,0], 'change': [0,0,0,1], 'left': [0,0,0,0], 'right': [0,0,0,1] }]
+rules = [{'target': [-1,-1,-1,-1], 'change': [0,1,0,0], 'left': [1, -1, 1, 0], 'right': [0,0,0,0] },
+         {'target': [-1, 1, 0, 0], 'change': [0,0,0,1], 'left': [0,0,0,1], 'right': [0,0,0,1] }]
 
 
 """
@@ -217,7 +217,7 @@ def sample_non_context_phoneme(context, objects_np, symbols, fv_to_symbols):
     # sample randomly from list
     symbol_idx = np.random.randint(0, len(not_phons))
 
-    return phons[symbol_idx]
+    return not_phons[symbol_idx]
     
 
 """

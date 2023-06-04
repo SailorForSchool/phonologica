@@ -162,5 +162,4 @@ def apply_rules_from_surface(rule_ordering, original_data):
 TODO
 """
 def combine_rules(rules):
-  for change, context in rules:
-    pass
+  pass
