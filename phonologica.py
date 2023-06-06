@@ -5,6 +5,8 @@ import sat
 import numpy as np
 from flag import *
 
+POSITIONS = ['left', 'target', 'right']
+
 """
 ADD DOCS TODO
 """
@@ -153,13 +155,58 @@ def infer_rule(data, change_rule):
   return sat.infer_rule(data, change_rule)
 
 """
-TODO: apply the rules backwards here, use new quality of life features
-"""
-def apply_rules_from_surface(rule_ordering, original_data):
-  pass
-
-"""
 TODO
 """
 def combine_rules(rules):
+  # if there is only one rule, return it
+  if len(rules.keys() == 1):
+    return rules
+  
+  new_rules = {}
+  
+  # examine every pair of rules
+  rule_pairs = list(itertools.combinations(rules.keys(), 2))
+  for rule1, rule2 in rule_pairs:
+
+    # check if the two contexts are the same, merge change
+    same = [prague.HashableArray(rules[rule1][position]) == prague.HashableArray(rules[rule2][position]) for position in POSITIONS]
+    if all(same):
+      new_rules[combine_contexts(rule1, rule2)] = rules[rule1]
+
+    else:
+      new_rules[rule1] = rules[rule1]  
+      new_rules[rule2] = rules[rule2]
+  
+  print(new_rules)
+
+  # now that there are no duplicates, look for feeding on focus / counter-bleeding on focus
+
+"""
+NOTE: the contexts are hashable arrays, returns a hashable array
+"""
+def combine_contexts(context1, context2):
+
+  context1_fv = context1.unwrap()
+  context2_fv = context2.unwrap()
+  new_context = []
+  for feat in range(len(FEAT_ORDERING)):
+    # NOTE: it is not possible to have two contexts that will be input to combine with incompatible fv
+    if context1_fv[feat] != 0 and context2_fv[feat] !=0:
+      if context1_fv[feat] != context2_fv[feat]:
+        # TODO - create actually throwable error here
+        print("ERROR: contexts to combine should never have opposing fv.")
+      else:
+        # append common value
+        new_context.append(context1_fv[feat])
+    elif context1_fv[feat] == 0:
+      new_context.append(context2_fv[feat])
+    else:
+      new_context.append(context1_fv[feat])
+  
+  return prague.HashableArray(new_context)
+
+"""
+TODO: apply the rules backwards here, use new quality of life features
+"""
+def apply_rules_from_surface(rule_ordering, original_data):
   pass

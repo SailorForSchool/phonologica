@@ -34,6 +34,7 @@ def preprocess_phoneme_data(input_filepath, output_filepath, features_list_filep
         preprocessed_objects = prague.convert.preprocess_objects(objects, 
                                                                 keys_to_remove=columns_to_remove)
 
+        # TODO: handle duplicates in future
         # get ordering of the features and convert, assuming no duplicates
         feature_ordering = tuple(sorted(preprocessed_objects[0].keys()))
         objects_np, _ = prague.convert.to_ternary_feature_vectors(preprocessed_objects,

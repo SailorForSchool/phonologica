@@ -20,11 +20,11 @@ dependencies:
    - toolz
    - xxhash
    - pip:
-        - more_itertools
-       - argparse==1.4.0
-       - Click==8.0
-       - Flask==2.0.2
-       - itsdangerous==1.1.0
-       - Jinja2==3.0.0
-       - MarkupSafe==2.1.1
-       - z3-solver==4.12.2.0
+      - more_itertools
+      - argparse==1.4.0
+      - Click==8.0
+      - Flask
+      - itsdangerous
+      - Jinja2==3.0.0
+      - MarkupSafe==2.1.1
+      - z3-solver==4.12.2.0

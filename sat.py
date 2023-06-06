@@ -219,10 +219,14 @@ def query_z3(triples_changed):
     
     # add features that are included
     feat_included =[]
+    pos_features = []
     for ident in model:
       if z3.is_true(model[ident]) and INCLUDED in str(ident):
         ident= str(ident).replace(INCLUDED, "")
         feat_included.append(idents_to_feat[ident])
+      if z3.is_true(model[ident]) and POSITIVE in str(ident):
+        ident= str(ident).replace(POSITIVE, "")
+        pos_features.append(idents_to_feat[ident])
     
   # TODO add values here!!!
 
@@ -232,7 +236,7 @@ def query_z3(triples_changed):
     for position in POSITIONS:
       for feature in phonologica.FEAT_ORDERING:
         if (feature, position) in feat_included:
-          value = z3.is_true(model[to_ident(feature, position) + POSITIVE])
+          value = (feature, position) in pos_features
           if value:
             rule[position].append(1)
           else:
@@ -241,6 +245,7 @@ def query_z3(triples_changed):
           rule[position].append(0)
 
     print(rule)
+    # rule is of the form {'position': [-1, 1, 0 ...], etc...}
     return rule
 
   else:

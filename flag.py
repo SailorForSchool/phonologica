@@ -9,7 +9,7 @@ the codebase
 # make this false to turn off verbose flags
 VERBOSE = True
 
-APP = False
+APP = True
 # flags for app.py
 H_INFER = True
 H_INFER_V = True
