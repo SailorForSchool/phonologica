@@ -60,17 +60,19 @@ def infer_rules(words):
   changes = phonologica.infer_changes(data)
   
   # dictionary with rule ordering, each "order" contains  rules - list of dictionaries with left, right, target, change
-  rules = phonologica.infer_rules(data, data, changes)
+  rules = phonologica.infer_rules(data, data, changes, {})
   
-  # TODO add inline here!
-  formated_rules = []
-  for i, rule in enumerate(rules):
-    if(INFER_V):
-      print("left: ", rule['left'])
-      print("phone: ", rule['target'])
-      print("right: ", rule['right'])
-      print("change: ", rule['change'], "\n")
+  # TODO add inline here! Also won't appear on website...
+  formated_rules = {}
+  for stratum in rules.keys():
+    for i, rule in enumerate(rules[stratum]):
+      if(INFER_V):
+        print(f"In stratum: {stratum}\n")
+        print("\tleft: ", rule['left'])
+        print("\tphone: ", rule['target'])
+        print("\tright: ", rule['right'])
+        print("\tchange: ", rule['change'], "\n")
     
-    formated_rules[f'Rule {i}'] = format_rule(rule)
+    formated_rules[f'Stratum {stratum} - Rule {i}'] = format_rule(rule)
 
   return formated_rules

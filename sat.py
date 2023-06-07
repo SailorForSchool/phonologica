@@ -2,6 +2,7 @@ import z3
 import prague
 import phonologica
 import data_utils
+import itertools
 from flag import *
 
 POSITIONS = ['left', 'target', 'right']
@@ -62,17 +63,111 @@ def infer_rule(data, change_rule):
   # find rule
   return query_z3(triples_changed)
 
-def infer_rule_order(rule_pairs, data):
-  for rule_1, rule_2 in rule_pairs:
-    # get rule dictionary and context dictionary
+"""
+TODO
+"""
+def infer_rule_order(rules, comb_contexts, data):
 
-    # first examine for feeding / bleeding relationship
+  # check for edge case - one rule
+  if len(rules.keys()) == 1:
+    change = list(rules.keys())[0]
+    return {1: [{'change': change.unwrap(), 'left': rules[change]['left'],'target': rules[change]['target'], 'right': rules[change]['right']}]}
 
-    # then examine underlying data
+  # list of tuples of pairwise ranking
+  less_than = []
+  # for ouput later
+  ident_to_change = {str(change.unwrap()): change for change in rules.keys()}
+
+  # classify interactions pairwise
+  rule_pairs = list(itertools.combinations(rules.keys(), 2))
+  for rule1, rule2 in rule_pairs:
+    # TODO!!! add counterbleeding, feeding on focus consideration
+    # infer order, remove extraneous rule
+    
+    # first try rule 1 - get rule dictionary and context dictionary
+    P = rules[rule1]
+    Q = rules[rule2]
+    P_Q = (rule1, rule2)
+
+    for _ in range(2):
+
+      # for classifying
+      feeding = []
+      bleeding = []
+      c_feeding = []
+      c_bleeding = []
+
+      # init boolean checks
+      q_change = False
+      ur_context = False
+      sr_context = False
+      change_context = False
+
+      # examine underlying / surface data
+      for und_triple, sur_triple in data:
+        # examine for change
+        if data_utils.feat_vector_in_class(sur_triple[1], P_Q[1].unwrap(), phonologica.OBJ_NP):
+          q_change = True
+        # examine for context in UR
+        if data_utils.feat_vector_in_class(und_triple[0], Q['left'], phonologica.OBJ_NP) and data_utils.feat_vector_in_class(und_triple[2], Q['right'], phonologica.OBJ_NP):
+          ur_context = True
+        # examine for context in SR
+        if data_utils.feat_vector_in_class(sur_triple[0], Q['left'], phonologica.OBJ_NP) and data_utils.feat_vector_in_class(sur_triple[2], Q['right'], phonologica.OBJ_NP):
+          sr_context = True
+        # examine for change in context
+        if (data_utils.feat_vector_in_class(sur_triple[0], P_Q[0].unwrap(), phonologica.OBJ_NP) and data_utils.feat_vector_in_class(und_triple[0], P['target'], phonologica.OBJ_NP))\
+           or (data_utils.feat_vector_in_class(sur_triple[2], P_Q[0].unwrap(), phonologica.OBJ_NP) and data_utils.feat_vector_in_class(und_triple[2], P['target'], phonologica.OBJ_NP)):
+          change_context = True
+        
+        # if there is a rule inetraction in this example, classify
+        if change_context and not all([q_change, sr_context, ur_context]) and any([sr_context, ur_context]):
+          feeding.append(q_change and not ur_context and sr_context)
+
+          if not feeding[-1]:
+            print(data_utils.get_phoneme(und_triple[0], phonologica.FV_TO_SYMBOLS))
+            print(data_utils.get_phoneme(und_triple[1], phonologica.FV_TO_SYMBOLS))
+            print(data_utils.get_phoneme(und_triple[2], phonologica.FV_TO_SYMBOLS))
+            print(q_change, ur_context, sr_context)
+
+
+          c_feeding.append(not q_change and not ur_context and sr_context)
+          c_bleeding.append(q_change and ur_context and not sr_context)
+          bleeding.append(not q_change and ur_context and not sr_context)
+
+      # if classified correctly for all examples, add ordering
+      # TODO: add error processing, should be consistent
+
+      # add check for each
+      if (all(feeding) or all(bleeding)) and len(feeding) != 0:
+        less_than.append(P_Q)
+      elif (all(c_feeding) or all(c_bleeding)) and len(feeding) != 0:
+        less_than.append((P_Q[1], P_Q[0]))
+
+      # change P and Q and try other order
+      P = rules[rule2]
+      Q = rules[rule1]
+      P_Q = (rule2, rule1)
 
     # determine order
+    solver = z3.Optimize()
 
-    pass
+    # add all rules to model, make sure positive integers only
+    z3_changes = {change_str: z3.Int(change_str) for change_str in ident_to_change.keys()}
+    for ident in z3_changes.keys():
+      solver.add(z3_changes[ident] > 0)
+
+
+    # add all pairwise rankings
+    for (change1, change2) in less_than:
+      solver.add(z3_changes[str(change1.unwrap())] < z3_changes[str(change2.unwrap())])
+
+
+    # check model
+    if solver.check() == z3.sat:
+      out = solver.model()
+      print(out)
+    else:
+      return None # {1: [{'left':}], 2: [...]}
 
 """
 Docs
@@ -123,24 +218,7 @@ def collect_features(triples):
   return feat_collection
 
 """
-TODO ????
-"""
-def apply_change(features, rule):
-
-  new_features = dict(features)
-  new_features.update(rule)
-
-  # DEBUG OUTPUT: TODO could output the feature changed?
-  if (S_APCH):
-    print("In sat.apply_change\n")
-  if (S_APCH_V):
-    print("rule", rule, "\n")
-  # END DBEUG
-
-  return new_features
-
-"""
-TODO
+DOCS
 """
 def query_z3(triples_changed):
   
@@ -159,11 +237,6 @@ def query_z3(triples_changed):
   # create dictionary for converting z3 output from both of the above
   idents_to_feat = {to_ident(feature, position): (feature, position) for feature, position in context.keys()}
 
-  # delete? TODO
-  # for triple_context in not_context:
-  #   for feature, position in triple_context.keys():
-  #     idents_to_feat[to_ident(feature, position)] = (feature, position)
-  
   # create solver for inference
   solver = z3.Optimize()
 
@@ -188,7 +261,7 @@ def query_z3(triples_changed):
 
   # use counter-examples to determine which feature position pairs are necessary and their value
   conjunction = []
-  for counter_example, triple in zip(not_context, unchanged):
+  for counter_example, triple in zip(not_context, unchanged): # NOTE: triple is for debug
 
     # for each example, consider which features exempted the triple from the rule
     example_constraints = []
@@ -212,7 +285,7 @@ def query_z3(triples_changed):
   # rule must satisfy all examples
   solver.add(z3.And(*conjunction))
 
-  # TODO HERE
+  # collect results and return rule
   if solver.check() == z3.sat:
     rule = {'left': [], 'target': [], 'right': []}
     model = solver.model()
@@ -224,11 +297,9 @@ def query_z3(triples_changed):
       if z3.is_true(model[ident]) and INCLUDED in str(ident):
         ident= str(ident).replace(INCLUDED, "")
         feat_included.append(idents_to_feat[ident])
-      if z3.is_true(model[ident]) and POSITIVE in str(ident):
+      elif z3.is_true(model[ident]) and POSITIVE in str(ident):
         ident= str(ident).replace(POSITIVE, "")
         pos_features.append(idents_to_feat[ident])
-    
-  # TODO add values here!!!
 
     print(feat_included)
 
@@ -251,7 +322,31 @@ def query_z3(triples_changed):
   else:
     print('unsat')
     return None
+    
+"""
+NOTE: the contexts are hashable arrays, returns a hashable array
+"""
+def combine_contexts(context1, context2):
 
-
-
-
+  context1_fv = context1.unwrap()
+  context2_fv = context2.unwrap()
+  new_context = []
+  for feat in range(len(phonologica.FEAT_ORDERING)):
+    
+    if context1_fv[feat] != 0 and context2_fv[feat] !=0:
+      
+      # NOTE: it is not possible to have two contexts that will be input to combine with incompatible fv, so return None
+      if context1_fv[feat] != context2_fv[feat]:
+        return None
+      
+      # append common value
+      else:
+        new_context.append(context1_fv[feat])
+    
+    # otherwise take union 
+    elif context1_fv[feat] == 0:
+      new_context.append(context2_fv[feat])
+    else:
+      new_context.append(context1_fv[feat])
+  
+  return prague.HashableArray(new_context)

@@ -92,7 +92,7 @@ def feat_vector_in_class(feat_vector, partial_feat_v, objects_np):
     # create hashable list
     nat_class = [prague.HashableArray(fv) for fv in nat_class]
 
-    return prague.HashableAraay(feat_vector) in nat_class
+    return prague.HashableArray(feat_vector) in nat_class
 
 """
 DOCS
@@ -125,6 +125,21 @@ def apply_rule_to_fv(target_fv, change):
     for i, context_value in enumerate(change):
         if context_value != 0:
             new_array[i] = context_value
+
+    # return the SR feature vector of the target
+    return new_array
+
+"""
+DOCS
+"""
+def apply_rule_backwards_to_fv(und_fv,target_fv, change):
+
+    new_array = np.copy(target_fv)
+    
+    # create new phoneme target with changes
+    for i, context_value in enumerate(change):
+        if context_value != 0:
+            new_array[i] = und_fv[i]
 
     # return the SR feature vector of the target
     return new_array
